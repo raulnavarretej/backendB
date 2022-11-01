@@ -252,7 +252,40 @@ const updateUserByUsuario = async (req = request, res = response) => {
     
         }
 }
+const changePass = async (req = request, res = response) => {
+    const {Usuario, Contrasena, nuevaContrasena} = req.body
+
+    if(!Contrasena || !nuevaContrasena || !Usuario){
+        res.status(400).json({msg: "Faltan Datos."})
+    }
+
+    let conn;
+    try {
+        conn = await pool.getConnection()
+
+        const [pass] = await conn.query(`SELECT Contrasena, Usuario FROM Usuarios WHERE Usuario = '${Usuario}'`, (error) => {if(error) throw error})
+        if(!pass){
+            res.status(403).json({msg:"Datos Invalidos"})
+            return
+        }
+        const passValid = bcryptjs.compareSync(Contrasena, pass.Contrasena)
+        const salt = bcryptjs.genSaltSync()
+        const contrasenaCifrada = bcryptjs.hashSync(nuevaContrasena, salt)
+
+        if(!passValid){
+            res.status(403).json({msg:"La contraseña que se ingresó no son válidos."})
+            return
+        }
+        
+        const updpass = await conn.query(`UPDATE Usuarios SET Contrasena = '${contrasenaCifrada}' WHERE Usuario = '${Usuario}'`, (error) => {if(error) throw error})
+        res.json({msg:`La contraseña se ha cambiado correctamente.`})
+    } catch (error) {
+        console.log(error)
+        res.status(500).json({msg: error})//informamos el error
+    } finally {
+        if (conn) conn.end()//Termina la conexión 
+    }
+}
 
 
-
-module.exports = {getUsers, getUserByID, deleteUserByID, addUser, updateUserByUsuario, signIn }
+module.exports = {getUsers, getUserByID, deleteUserByID, addUser, updateUserByUsuario, signIn, changePass}
